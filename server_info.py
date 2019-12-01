@@ -78,13 +78,28 @@ def pretty_print():
     print(table)
 
 
+def choice_menu():
+    return 3
+
+
+def avg_cpu_mem():
+    pass
+
+
 if __name__ == '__main__':
-    # url = 'http://localhost:8080/servers'
     server_ip = 'http://localhost:8080/'
     url = server_ip + 'servers'
+    # Populate initial data
     server_list = poll_for_server_list(url)
-    # print (server_list)
     poll_for_detailed_server_info(server_list, server_ip)
     low_healthy_service_check()
-    pretty_print()
+
+    option = choice_menu()
+    if option == 1:
+        pretty_print()
+    elif option == 2:
+        avg_cpu_mem()
+    elif option == 3:
+        print(Server.objects.distinct('service'))
+
     Server.objects.delete()
