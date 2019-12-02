@@ -1,31 +1,11 @@
-from mongoengine import *
-import datetime
 import pycurl
 from io import BytesIO
 import json
 import re
-from columnar import columnar
-from click import style
+import pandas as pd
 
 MEM_ALARM = 90
 CPU_ALARM = 90
-
-# Create mongoDB connection or fail
-try:
-    connect('server_db', host='localhost', port=27017)
-
-except Exception as e:
-    print("DB connection failed ", e)
-
-
-# Create schema for MongoDB
-class Server(Document):
-    ip = StringField(required=True)
-    cpu = IntField(required=True)
-    memory = IntField(required=True)
-    service = StringField(required=True, max_length=20)
-    status = StringField()
-    polled = DateTimeField(default=datetime.datetime.now)
 
 
 def poll_for_server_list(url):
@@ -42,6 +22,7 @@ def poll_for_server_list(url):
 
 
 def poll_for_detailed_server_info(list, server_ip):
+    json_object = []
     for server_to_poll in list:
         buffer = BytesIO()
         c = pycurl.Curl()
@@ -49,57 +30,34 @@ def poll_for_detailed_server_info(list, server_ip):
         c.setopt(c.WRITEDATA, buffer)
         c.perform()
         c.close()
-        json_object = json.loads(buffer.getvalue())
-        server = Server()
-        server.ip = server_to_poll
-        server.cpu = re.sub("%", "", json_object['cpu'])
-        server.memory = re.sub("%", "", json_object['memory'])
-        server.service = json_object['service']
-        server.save()
+        json_object.append(json.loads(buffer.getvalue()))
+    return json_object
 
 
-def low_healthy_service_check():
-    for rec in Server.objects():
-        if rec.memory >= MEM_ALARM or rec.cpu >= CPU_ALARM:
-            rec.update(status="Unhealthy")
-        else:
-            rec.update(status="Healthy")
-
-
-def pretty_print():
-    patterns = [
-        ('Unhealthy', lambda text: style(text, fg='white', bg='red')),
-        ('[9]{1}\d{1}$', lambda text: style(text, fg='white', bg='red')),
-    ]
-    data = []
-    for rec in Server.objects():
-        data.append([rec.ip, rec.service, rec.status, rec.cpu, rec.memory])
-    table = columnar(data, headers=['IP', 'Service', 'Status', 'CPU', 'Memory'], patterns=patterns)
-    print(table)
-
-
-def choice_menu():
-    return 3
-
-
-def avg_cpu_mem():
-    pass
-
+def decide_status(row):
+    if int(row['cpu']) > 89 or int(row['memory']) > 89:
+        return 'Unhealthy'
+    else:
+        return 'Healthy'
 
 if __name__ == '__main__':
     server_ip = 'http://localhost:8080/'
     url = server_ip + 'servers'
-    # Populate initial data
     server_list = poll_for_server_list(url)
-    poll_for_detailed_server_info(server_list, server_ip)
-    low_healthy_service_check()
+    df = pd.read_json(json.dumps(poll_for_detailed_server_info(server_list, server_ip)))
+    df['server'] = server_list
+    df['cpu'] = df['cpu'].apply(lambda x: re.sub('%', '', str(x)))
+    df['memory'] = df['memory'].apply(lambda x: re.sub('%', '', str(x)))
+    df['cpu'] = pd.to_numeric(df['cpu'])
+    df['memory'] = pd.to_numeric(df['memory'])
+    df['status'] = ""
+    df['status'] = df.apply(lambda x: decide_status(x), axis=1)
+    print("OPTION 1")
+    print(df)  # Printed Option 1
 
-    option = choice_menu()
-    if option == 1:
-        pretty_print()
-    elif option == 2:
-        avg_cpu_mem()
-    elif option == 3:
-        print(Server.objects.distinct('service'))
-
-    Server.objects.delete()
+    print("OPTION 2")
+    print(df.groupby(['service']).mean())  # Printed Option 2
+    after = df[df['status'] == 'Healthy']
+    after = df.groupby(['service']).size()
+    print("OPTION 3")
+    print(after[after < 2])  # Printed Option 3
