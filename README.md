@@ -1,30 +1,23 @@
 # server_info
-Poll Servers and present a basic CPU/RAM report
+Poll Servers and present a basic CPU/RAM report and some stats.
+Presents report in following fashion:
+- Full view of all server IPs, CPU, RAM, Services and Health Status.
+- Presents a report of servers grouped by type of Service and an aggregate of the CPU and RAM utilisation for that service.
+- A view of any services running less than 2 healthy nodes (blank if no matches)
 
 ## Pre-requisites
-- Docker instance running mongoDB
+- Run cpx_server script on port 8080 on localhost.
 `
-docker run -d -p 27017-27019:27017-27019 --name mongodb mongo:4.0.4
-docker exec -it mongodb bash
+python cpx_server.py 8080
 `
-Once in interactive bash mode type the following:
-`mongo`
-Once inside mongo terminal, pass the following commands to create a new DB
-``
-use server_db
-db
-`
-The result of 'db' command should show 'server_db' implying that the new database we created is currently selected for use.
-Now, exit the mongo shell and the docker interactive shell too.
-Type 'exit' on each shell. You may have to do this twice to get back to your host machine's shell.
 
-- Get pip to install mongoengine
-`
-pip install mongoengine
-`
-- Install pycurl
+- Install pandas
+- Ensure you have PyCurl, IO, json and re packages available. For example, to install PyCurl, see below:
 `
 pip install pycurl
 `
-
+## Usage
+`
+python server_info.py
+`
 
