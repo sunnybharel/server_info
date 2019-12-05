@@ -35,7 +35,7 @@ def poll_for_detailed_server_info(list, server_ip):
 
 
 def decide_status(row):
-    if int(row['cpu']) > 89 or int(row['memory']) > 89:
+    if int(row['cpu']) > CPU_ALARM or int(row['memory']) > MEM_ALARM:
         return 'Unhealthy'
     else:
         return 'Healthy'
